@@ -1,0 +1,130 @@
+:toc:
+
+# What is jCurl?
+
+jCurl is a curl-inspired, java-based HTTP command line client. It can be distributed as a single executable JAR.
+
+
+# Why jCurl?
+
+jCurl was created for several reasons:
+
+- the environment didn't allow for uploading/installing un*x binaries
+- curl < v7.40 has issues with certain SSL cyphers
+- a problem with a Java application and mutual SSL wasn't reproducible with the usual curl or wget tests.
+- a problem with the java keystore
+
+In order to run tests using code as close as possible to the code used in the applications, jCurl has proven to be a useful utility.
+
+
+# Features
+
+Use the --help option to get a list of all features
+
+```
+$>java -jar jcurl-all.jar --help
+
+Starting jCurl in /Users/admin/workspaces/_ee/jcurl
+Usage: jcurl [options...] <url>
+
+Note: options may be used in their long form with 2 hyphens or abbreviated using 1 hyphen, e.g. '--count 3' and '-c 3' are equivalent
+
+Option                 Description
+------                 -----------
+-H, --header           header syntax equivalent to curl, e.g.
+                         '-H "Accept: application/json"'
+-c, --count <Integer>  repeat call x times
+-e, --engine           which engine to use ('url': java.net.
+                         URL, 'hcnio': Apache
+                         AsyncHttpClient), default is 'url'
+-h, --help             print help
+-v, --verbose          activate verbose logging
+```
+
+Currently available engines are:
+
+- url:
+    java.net.URL (https://docs.oracle.com/javase/8/docs/api/java/net/URL.html)
+- hc:
+    Apache HttpClient (https://hc.apache.org/httpcomponents-client-ga/)
+- hcnio:
+    Apache HttpAsyncClient (https://hc.apache.org/httpcomponents-asyncclient-4.1.x/index.html)
+- nnio:
+    Netty 4 NIO Client (http://netty.io/wiki/user-guide-for-4.x.html#wiki-h3-10)
+- OkHttp:
+    OkHttp Client (http://square.github.io/okhttp/)
+- Jetty:
+    Jetty Http Client (http://www.eclipse.org/jetty/documentation/current/http-client.html)
+
+
+# Example Usages
+
+## submit multiple requests
+
+``` sh
+java \
+    -jar jcurl-all.jar \
+    -H "accept: application/xml" \
+    --count 3 \
+    --engine hcnio \
+    http://example.com/some/url
+```
+
+repeats the same request 3 times, using Apache HttpAsyncClient.
+
+
+## submit request with mutual SSL
+
+In order to submit HTTPS requests, you need to use the usual JVM properties to specify trust-/keystores, e.g.
+
+``` sh
+# ./jcurl_sample_ssl.sh
+
+JVMARGS="$JVMARGS -Djavax.net.debug=ssl,handshake" # for debug output
+JVMARGS="$JVMARGS -Djavax.net.ssl.keyStore=mykeystore.jks -Djavax.net.ssl.keyStorePassword=changeit"
+
+java \
+    -jar jcurl-all.jar \
+    -H "accept: application/xml" \
+    --engine url \
+    http://example.com/some/url
+```
+
+## useful JVM arguments
+
+1) debug SSL Handshake etc (see http://docs.oracle.com/javase/7/docs/technotes/guides/security/jsse/ReadDebug.html)
+```
+ -Djavax.net.debug=ssl,handshake
+```
+
+2) specify truststore and keystore (see http://docs.oracle.com/javase/7/docs/technotes/guides/security/jsse/JSSERefGuide.html#SSLOverview)
+```
+  -Djavax.net.ssl.keyStoreType=<jks|PKCS12> -Djavax.net.ssl.keyStore=./path/to/keystore.jks -Djavax.net.ssl.keyStorePassword=<password>
+  -Djavax.net.ssl.trustStoreType=<jks|PKCS12> -Djavax.net.ssl.trustStore=./path/to/truststore.jks -Djavax.net.ssl.trustStorePassword=<password>
+```
+
+
+3) specify proxies (see https://docs.oracle.com/javase/8/docs/technotes/guides/net/proxies.html)
+```
+  HTTP: -Dhttp.proxyHost=webcache.example.com -Dhttp.proxyPort=8080
+  HTTPS: -Dhttps.proxyHost=webcache.example.com -Dhttps.proxyPort=8080
+  SOCKS: -DsocksProxyHost=webcache.example.com -DsocksProxyPort=1080
+```
+
+
+# How to build
+
+In order to build you need to have Java >=8 and Maven >= 3 installed. Then simply run
+
+```
+mvn clean package
+```
+
+the resulting binary will be placed in the root of the project as `jcurl-all.jar`
+
+# TODOs
+
+Currently only GET requests are supported. If you would like to see more/other features or find a bug, please
+
+1. create a ticket
+2. send a pull request
