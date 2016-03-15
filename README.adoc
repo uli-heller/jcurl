@@ -16,6 +16,9 @@ jCurl was created for several reasons:
 
 In order to run tests using code as close as possible to the code used in the applications, jCurl has proven to be a useful utility.
 
+# License
+
+jCurl is licensed under Apache License 2.0
 
 # Features
 
