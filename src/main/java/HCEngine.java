@@ -19,7 +19,6 @@ import java.util.Map;
 
 import javax.net.ssl.SSLContext;
 
-import lombok.NonNull;
 import org.apache.http.impl.NoConnectionReuseStrategy;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -36,12 +35,12 @@ import org.springframework.web.client.RestTemplate;
  */
 public class HCEngine implements Engine {
     @Override
-    public ResponseEntity<String> submit(@NonNull String url, int count, @NonNull Map<String, String> headerMap) throws Exception {
+    public ResponseEntity<String> submit(JCurlRequestOptions requestOptions) throws Exception {
         ResponseEntity<String> stringResponseEntity = null;
         try (CloseableHttpClient hc = createCloseableHttpClient()) {
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < requestOptions.getCount(); i++) {
                 final HttpHeaders headers = new HttpHeaders();
-                for(Map.Entry<String,String> e : headerMap.entrySet()) {
+                for(Map.Entry<String,String> e : requestOptions.getHeaderMap().entrySet()) {
                     headers.put(e.getKey(), Collections.singletonList(e.getValue()));
                 }
 
@@ -49,7 +48,7 @@ public class HCEngine implements Engine {
 
                 RestTemplate template = new RestTemplate(new HttpComponentsClientHttpRequestFactory(hc));
 
-                stringResponseEntity = template.exchange(url, HttpMethod.GET, requestEntity, String.class);
+                stringResponseEntity = template.exchange(requestOptions.getUrl(), HttpMethod.GET, requestEntity, String.class);
                 System.out.println(stringResponseEntity.getBody());
 
             }

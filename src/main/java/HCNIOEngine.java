@@ -19,7 +19,6 @@ import java.util.Map;
 
 import javax.net.ssl.SSLContext;
 
-import lombok.NonNull;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.DefaultConnectionReuseStrategy;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
@@ -38,19 +37,19 @@ import org.springframework.web.client.AsyncRestTemplate;
  */
 public class HCNIOEngine implements Engine {
     @Override
-    public ResponseEntity<String> submit(@NonNull String url, int count, @NonNull Map<String, String> headerMap) throws Exception {
+    public ResponseEntity<String> submit(JCurlRequestOptions requestOptions) throws Exception {
         ResponseEntity<String> stringResponseEntity = null;
         try (CloseableHttpAsyncClient hc = createCloseableHttpAsyncClient()) {
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < requestOptions.getCount(); i++) {
                 final HttpHeaders headers = new HttpHeaders();
-                for (Map.Entry<String, String> e : headerMap.entrySet()) {
+                for (Map.Entry<String, String> e : requestOptions.getHeaderMap().entrySet()) {
                     headers.put(e.getKey(), Collections.singletonList(e.getValue()));
                 }
 
                 final HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
 
                 AsyncRestTemplate template = new AsyncRestTemplate(new HttpComponentsAsyncClientHttpRequestFactory(hc));
-                final ListenableFuture<ResponseEntity<String>> exchange = template.exchange(url, HttpMethod.GET, requestEntity, String.class);
+                final ListenableFuture<ResponseEntity<String>> exchange = template.exchange(requestOptions.getUrl(), HttpMethod.GET, requestEntity, String.class);
                 stringResponseEntity = exchange.get();
                 System.out.println(stringResponseEntity.getBody());
 

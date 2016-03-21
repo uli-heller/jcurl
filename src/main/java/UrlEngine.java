@@ -14,14 +14,11 @@
  *  limitations under the License.
  */
 
-import lombok.NonNull;
 import org.apache.commons.io.IOUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import java.io.BufferedReader;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Map;
@@ -32,23 +29,23 @@ import java.util.Map;
  */
 public class UrlEngine implements Engine {
     @Override
-    public ResponseEntity<String> submit(@NonNull String url, int count, @NonNull Map<String, String> headerMap) throws Exception {
+    public ResponseEntity<String> submit(JCurlRequestOptions requestOptions) throws Exception {
         System.setProperty("http.keepAlive", "true");
 
         ResponseEntity<String> responseEntity = null;
-        URL obj = new URL(url);
+        URL obj = new URL(requestOptions.getUrl());
 
-        for (int i=0;i< count;i++) {
+        for (int i=0;i< requestOptions.getCount();i++) {
             HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
             // add request header
             con.setRequestMethod("GET");
             con.setConnectTimeout(2000);
-            for(Map.Entry<String,String> e : headerMap.entrySet()) {
+            for(Map.Entry<String,String> e : requestOptions.getHeaderMap().entrySet()) {
                 con.setRequestProperty(e.getKey(), e.getValue());
             }
 
-            System.out.println("\nSending 'GET' request to URL : " + url);
+            System.out.println("\nSending 'GET' request to URL : " + requestOptions.getUrl());
             con.connect();
 
             int responseCode = con.getResponseCode();

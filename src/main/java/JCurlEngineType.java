@@ -14,14 +14,27 @@
  *  limitations under the License.
  */
 
-import org.springframework.http.ResponseEntity;
+import lombok.NonNull;
 
 /**
  * @author Erich Eichinger
- * @since 01/03/2016
+ * @since 21/03/2016
  */
-public interface Engine {
+enum JCurlEngineType {
+    URL(new UrlEngine()),
+    HC(new HCEngine()),
+    HCNIO(new HCNIOEngine()),
+    NNIO(new NNIOEngine()),
+    OKHTTP(new OkHttpEngine()),
+    JETTY(new JettyEngine());
 
-    ResponseEntity<String> submit(JCurlRequestOptions requestOptions) throws Exception;
+    private final Engine engine;
 
+    public Engine getEngine() {
+        return engine;
+    }
+
+    JCurlEngineType(@NonNull Engine engine) {
+        this.engine = engine;
+    }
 }

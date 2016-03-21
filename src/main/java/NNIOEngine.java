@@ -16,19 +16,14 @@
 
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.ssl.*;
-import lombok.NonNull;
-import lombok.SneakyThrows;
-import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.HttpComponentsAsyncClientHttpRequestFactory;
 import org.springframework.http.client.Netty4ClientHttpRequestFactory;
 import org.springframework.util.concurrent.ListenableFuture;
 import org.springframework.web.client.AsyncRestTemplate;
 
-import javax.net.ssl.SSLContext;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +34,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class NNIOEngine implements Engine {
     @Override
-    public ResponseEntity<String> submit(@NonNull String url, int count, @NonNull Map<String, String> headerMap) throws Exception {
+    public ResponseEntity<String> submit(JCurlRequestOptions requestOptions) throws Exception {
         int ioWorkerCount = Runtime.getRuntime().availableProcessors() * 2;
         NioEventLoopGroup eventLoopGroup = new NioEventLoopGroup(ioWorkerCount);
 
@@ -54,23 +49,23 @@ public class NNIOEngine implements Engine {
                 .build()
             ;
 */
-            if (url.toLowerCase().startsWith("https://")) {
+            if (requestOptions.getUrl().toLowerCase().startsWith("https://")) {
                 SslContext sslContext = new DefaultClientSslContext();
                 netty4ClientHttpRequestFactory.setSslContext(sslContext);
             }
             netty4ClientHttpRequestFactory.afterPropertiesSet();
 
             ResponseEntity<String> stringResponseEntity = null;
-            for (int i = 0; i < count; i++) {
+            for (int i = 0; i < requestOptions.getCount(); i++) {
                 final HttpHeaders headers = new HttpHeaders();
-                for(Map.Entry<String,String> e : headerMap.entrySet()) {
+                for(Map.Entry<String,String> e : requestOptions.getHeaderMap().entrySet()) {
                     headers.put(e.getKey(), Collections.singletonList(e.getValue()));
                 }
 
                 final HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
 
                 AsyncRestTemplate template = new AsyncRestTemplate(netty4ClientHttpRequestFactory);
-                final ListenableFuture<ResponseEntity<String>> exchange = template.exchange(url, HttpMethod.GET, requestEntity, String.class);
+                final ListenableFuture<ResponseEntity<String>> exchange = template.exchange(requestOptions.getUrl(), HttpMethod.GET, requestEntity, String.class);
                 stringResponseEntity = exchange.get();
                 System.out.println(stringResponseEntity.getBody());
             }

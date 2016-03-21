@@ -14,7 +14,6 @@
  *  limitations under the License.
  */
 
-import lombok.NonNull;
 import org.apache.commons.io.IOUtils;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
@@ -32,7 +31,7 @@ import java.util.Map;
  */
 public class JettyEngine implements Engine {
     @Override
-    public ResponseEntity<String> submit(@NonNull String url, int count, @NonNull Map<String, String> headerMap) throws Exception {
+    public ResponseEntity<String> submit(JCurlRequestOptions requestOptions) throws Exception {
 
         final SslContextFactory sslContextFactory = new SslContextFactory();
         sslContextFactory.setSslContext(SSLContext.getDefault());
@@ -42,15 +41,15 @@ public class JettyEngine implements Engine {
 
         ResponseEntity<String> responseEntity = null;
 
-        for (int i=0;i< count;i++) {
+        for (int i=0;i< requestOptions.getCount();i++) {
             final Request request = httpClient
-                .newRequest(url);
+                .newRequest(requestOptions.getUrl());
 
-            for(Map.Entry<String,String> e : headerMap.entrySet()) {
+            for(Map.Entry<String,String> e : requestOptions.getHeaderMap().entrySet()) {
                 request.header(e.getKey(), e.getValue());
             }
 
-            System.out.println("\nSending 'GET' request to URL : " + url);
+            System.out.println("\nSending 'GET' request to URL : " + requestOptions.getUrl());
             final ContentResponse response = request.send();
 
             int responseCode = response.getStatus();

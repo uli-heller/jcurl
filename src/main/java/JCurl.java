@@ -15,6 +15,9 @@
  *  limitations under the License.
  */
 
+import java.io.IOException;
+import java.util.logging.LogManager;
+
 import ch.qos.logback.classic.BasicConfigurator;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
@@ -26,104 +29,103 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.logging.LogManager;
-
 import static java.util.Arrays.asList;
 
 public class JCurl {
-
-    private static final String USER_AGENT = "Mozilla/5.0; jcurl";
-
-    enum EngineType {
-        URL(new UrlEngine()),
-        HC(new HCEngine()),
-        HCNIO(new HCNIOEngine()),
-        NNIO(new NNIOEngine()),
-        OKHTTP(new OkHttpEngine()),
-        JETTY(new JettyEngine());
-
-        private final Engine engine;
-
-        public Engine getEngine() {
-            return engine;
-        }
-
-        EngineType(@NonNull Engine engine) {
-            this.engine = engine;
-        }
-    }
 
     public static void main(String[] args) throws Exception {
         new JCurl().execute(args);
     }
 
-    public static class JCurlLogConfig {}
+    @NonNull
+    final OptionParser parser;
+    @NonNull
+    final OptionSpec<String> headerSpec;
+    @NonNull
+    final OptionSpec<String> engineOptionSpec;
+
+    public JCurl() {
+        parser = new OptionParser();
+        parser.acceptsAll(asList("help", "h"), "print help");
+        headerSpec = parser
+            .acceptsAll(asList("header", "H"), "header syntax equivalent to curl, e.g. '-H \"Accept: application/json\"'")
+            .withRequiredArg()
+            .ofType(String.class);
+        parser.acceptsAll(asList("verbose", "v"), "activate verbose logging");
+        parser.acceptsAll(asList("count", "c"), "repeat call x times")
+              .withRequiredArg()
+              .ofType(Integer.class);
+        engineOptionSpec = parser
+            .acceptsAll(asList("engine", "e")
+                , "which engine to use:" +
+                    "\n'url': java.net.URL (default)" +
+                    "\n'hc': Apache HttpClient" +
+                    "\n'hcnio': Apache HttpAsyncClient" +
+                    "\n'nnio': Netty" +
+                    "\n'okhttp': OkHttp" +
+                    "\n'jetty': Jetty"
+            )
+            .withRequiredArg()
+            .ofType(String.class);
+    }
 
     public ResponseEntity<String> execute(String... args) throws Exception {
         final LoggerContext context = initLogging();
 
         System.out.println("Starting jCurl in " + System.getProperty("user.dir"));
 
-
-        OptionParser parser = new OptionParser();
-        parser.acceptsAll( asList("help", "h"), "print help" );
-        OptionSpec<String> headerSpec =
-            parser.acceptsAll(asList("header", "H"), "header syntax equivalent to curl, e.g. '-H \"Accept: application/json\"'").withRequiredArg().ofType(String.class);
-        parser.acceptsAll(asList("verbose", "v"), "activate verbose logging");
-//        parser.accepts( "level" ).withOptionalArg();
-        parser.acceptsAll( asList("count", "c"), "repeat call x times" ).withRequiredArg().ofType(Integer.class);
-        OptionSpec<String> engineOptionSpec = parser.acceptsAll(asList("engine", "e"), "which engine to use ('url': java.net.URL, 'hcnio': Apache AsyncHttpClient), default is 'url'").withRequiredArg().ofType(String.class);
-
-        OptionSet options = parser.parse(args);
-
-        if (args.length == 0 || options.has("help")) {
-            printUsage(parser);
+        OptionSet optionSet = parseOptionSet(args);
+        if (optionSet == null) {
             return null;
         }
 
-        EngineType engineType = EngineType.URL;
-        if (options.has("engine")) {
-            engineType = EngineType.valueOf(options.valueOf(engineOptionSpec).toUpperCase());
+        final JCurlRequestOptions options = new JCurlRequestOptions();
+
+        String url = String.valueOf(optionSet.nonOptionArguments().get(0));
+        options.setUrl(url);
+
+        JCurlEngineType engineType = JCurlEngineType.URL;
+        if (optionSet.has("engine")) {
+            engineType = JCurlEngineType.valueOf(optionSet.valueOf(engineOptionSpec).toUpperCase());
         }
 
-        if (options.has("verbose")) {
+        if (optionSet.has("verbose")) {
             LogManager.getLogManager().getLogger("").setLevel(java.util.logging.Level.ALL);
             context.getLogger(Logger.ROOT_LOGGER_NAME).setLevel(Level.ALL);
         }
 
-        int count = 1;
-        if (options.has("count")) {
-            count = Integer.valueOf("" + options.valueOf("count"));
+        if (optionSet.has("count")) {
+            options.setCount(Integer.valueOf("" + optionSet.valueOf("count")));
         }
 
-        final List<?> nonOpts = options.nonOptionArguments();
-        if (nonOpts.size() != 1) {
-            System.err.println("missing <url> argument");
-            printUsage(parser);
-        }
-        String url = String.valueOf(nonOpts.get(0));
-
-        Map<String, String> headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
-        headers.put("User-Agent", USER_AGENT);
-        headers.put("Accept", "*/*");
-
-        if (options.has("header")) {
-            for(String header : options.valuesOf(headerSpec)) {
+        if (optionSet.has("header")) {
+            for (String header : optionSet.valuesOf(headerSpec)) {
                 String[] vals = header.split(":");
                 if (vals.length == 1) {
-                    headers.put(vals[0].trim(), null);
+                    options.setHeader(vals[0].trim(), null);
                 } else {
-                    headers.put(vals[0].trim(), vals[1].trim());
+                    options.setHeader(vals[0].trim(), vals[1].trim());
                 }
             }
         }
 
-        return engineType.getEngine().submit(url, count, headers);
+        return engineType.getEngine().submit(options);
+    }
+
+    private OptionSet parseOptionSet(String[] args) throws IOException {
+        OptionSet optionSet = parser.parse(args);
+
+        if (args.length == 0 || optionSet.has("help")) {
+            printUsage(parser);
+            return null;
+        }
+
+        if (optionSet.nonOptionArguments().size() != 1) {
+            System.err.println("missing <url> argument");
+            printUsage(parser);
+            return null;
+        }
+        return optionSet;
     }
 
     protected void printUsage(OptionParser parser) throws IOException {

@@ -14,7 +14,6 @@
  *  limitations under the License.
  */
 
-import lombok.NonNull;
 import okhttp3.*;
 import org.apache.commons.io.IOUtils;
 import org.springframework.http.HttpStatus;
@@ -22,9 +21,6 @@ import org.springframework.http.ResponseEntity;
 
 import javax.net.ssl.SSLContext;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -33,7 +29,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class OkHttpEngine implements Engine {
     @Override
-    public ResponseEntity<String> submit(@NonNull String url, int count, @NonNull Map<String, String> headerMap) throws Exception {
+    public ResponseEntity<String> submit(JCurlRequestOptions requestOptions) throws Exception {
         OkHttpClient client = new OkHttpClient.Builder()
             .connectTimeout(2000, TimeUnit.MILLISECONDS)
             .sslSocketFactory(SSLContext.getDefault().getSocketFactory())
@@ -42,14 +38,14 @@ public class OkHttpEngine implements Engine {
 
         ResponseEntity<String> responseEntity = null;
 
-        for (int i=0;i< count;i++) {
+        for (int i=0;i< requestOptions.getCount();i++) {
             final Request.Builder requestBuilder = new Request.Builder()
-                .url(url)
-                .headers(Headers.of(headerMap))
+                .url(requestOptions.getUrl())
+                .headers(Headers.of(requestOptions.getHeaderMap()))
                 .get();
             Request request = requestBuilder.build();
 
-            System.out.println("\nSending 'GET' request to URL : " + url);
+            System.out.println("\nSending 'GET' request to URL : " + requestOptions.getUrl());
             Response response = client.newCall(request).execute();
 
             int responseCode = response.code();
