@@ -55,6 +55,10 @@ public class JCurl {
         parser.acceptsAll(asList("count", "c"), "repeat call x times")
               .withRequiredArg()
               .ofType(Integer.class);
+        parser.acceptsAll(asList("parallel", "p"), "submit <count> requests simultaneously")
+              .withRequiredArg()
+              .ofType(String.class);
+
         engineOptionSpec = parser
             .acceptsAll(asList("engine", "e")
                 , "which engine to use:" +
@@ -96,6 +100,10 @@ public class JCurl {
 
         if (optionSet.has("count")) {
             options.setCount(Integer.valueOf("" + optionSet.valueOf("count")));
+        }
+
+        if (optionSet.has("parallel")) {
+            options.setParallel(Boolean.valueOf("" + optionSet.valueOf("parallel")));
         }
 
         if (optionSet.has("header")) {
