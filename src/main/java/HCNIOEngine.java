@@ -14,22 +14,37 @@
  *  limitations under the License.
  */
 
-import java.util.Collections;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import javax.net.ssl.SSLContext;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.http.HttpException;
+import org.apache.http.HttpRequest;
+import org.apache.http.HttpRequestInterceptor;
+import org.apache.http.HttpResponse;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.impl.DefaultConnectionReuseStrategy;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.concurrent.FutureCallback;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
+import org.apache.http.impl.nio.reactor.IOReactorConfig;
+import org.apache.http.nio.ContentDecoder;
+import org.apache.http.nio.ContentEncoder;
+import org.apache.http.nio.NHttpClientConnection;
+import org.apache.http.nio.NHttpClientEventHandler;
+import org.apache.http.nio.protocol.HttpAsyncClientExchangeHandler;
+import org.apache.http.nio.protocol.HttpAsyncRequestExecutor;
+import org.apache.http.protocol.HttpContext;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.HttpComponentsAsyncClientHttpRequestFactory;
-import org.springframework.util.concurrent.ListenableFuture;
-import org.springframework.web.client.AsyncRestTemplate;
 
 /**
  * @author Erich Eichinger
@@ -38,41 +53,127 @@ import org.springframework.web.client.AsyncRestTemplate;
 public class HCNIOEngine implements Engine {
     @Override
     public ResponseEntity<String> submit(JCurlRequestOptions requestOptions) throws Exception {
+        final List<Future<HttpResponse>> responseFutures = new ArrayList<>();
+
         ResponseEntity<String> stringResponseEntity = null;
-        try (CloseableHttpAsyncClient hc = createCloseableHttpAsyncClient()) {
+        try (CloseableHttpAsyncClient hc = createCloseableHttpAsyncClient(requestOptions)) {
+            final List<HttpUriRequest> requests = new ArrayList<>();
+
             for (int i = 0; i < requestOptions.getCount(); i++) {
-                final HttpHeaders headers = new HttpHeaders();
+                HttpUriRequest httpUriRequest = new HttpGet(requestOptions.getUrl());
                 for (Map.Entry<String, String> e : requestOptions.getHeaderMap().entrySet()) {
-                    headers.put(e.getKey(), Collections.singletonList(e.getValue()));
+                    httpUriRequest.addHeader(e.getKey(), e.getValue());
                 }
-
-                final HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
-
-                AsyncRestTemplate template = new AsyncRestTemplate(new HttpComponentsAsyncClientHttpRequestFactory(hc));
-                final ListenableFuture<ResponseEntity<String>> exchange = template.exchange(requestOptions.getUrl(), HttpMethod.GET, requestEntity, String.class);
-                stringResponseEntity = exchange.get();
-                System.out.println(stringResponseEntity.getBody());
-
+                requests.add(httpUriRequest);
             }
+
+            for (int i = 0; i < requests.size(); i++) {
+                final int nr = i;
+
+                HttpClientContext ctx = HttpClientContext.create();
+                ctx.setAttribute("requestnr", ""+nr);
+                HttpUriRequest request = requests.get(i);
+                System.out.println("submit request " + i);
+
+                final Future<HttpResponse> responseFuture = hc.execute(request, ctx, new FutureCallback<HttpResponse>() {
+
+                    @Override
+                    public void completed(HttpResponse result) {
+                        System.out.println("request " + nr + " complete");
+                    }
+
+                    @Override
+                    public void failed(Exception ex) {
+                        System.out.println("request " + nr + " failed:" + ex.getMessage());
+                    }
+
+                    @Override
+                    public void cancelled() {
+                        System.out.println("request " + nr + " cancelled");
+                    }
+                });
+                if (!requestOptions.isParallel()) {
+                    System.out.println("awaiting sync response " + i);
+                    stringResponseEntity = extractResponseEntity(i, responseFuture);
+                } else {
+                    responseFutures.add(responseFuture);
+                }
+            }
+
+            int errors = 0;
+            Exception firstException = null;
+            if (requestOptions.isParallel()) {
+                for (int i = 0; i < responseFutures.size(); i++) {
+                    System.out.println("awaiting parallel response " + i);
+                    try {
+                        Future<HttpResponse> responseFuture = responseFutures.get(i);
+                        stringResponseEntity = extractResponseEntity(i, responseFuture);
+                    } catch (Exception e) {
+                        if (firstException == null) {
+                            firstException = e;
+                        }
+                        errors++;
+                    }
+                }
+            }
+
+            System.out.println("submitted requests: " + responseFutures.size() + ", errors: " + errors);
+
+            if (firstException != null) {
+                throw firstException;
+            }
+
             return stringResponseEntity;
         }
     }
 
-    private CloseableHttpAsyncClient createCloseableHttpAsyncClient() throws Exception {
+    private ResponseEntity<String> extractResponseEntity(int responseNr, Future<HttpResponse> responseFuture) throws InterruptedException, java.util.concurrent.ExecutionException, IOException {
+        try {
+            final HttpResponse response = responseFuture.get();
+            String responseBody = IOUtils.toString(response.getEntity().getContent());
+            return new ResponseEntity<String>(responseBody, HttpStatus.valueOf(response.getStatusLine().getStatusCode()));
+        } catch (Exception e) {
+            throw new RuntimeException("exception awaiting response " + responseNr, e);
+        }
+    }
+
+    private CloseableHttpAsyncClient createCloseableHttpAsyncClient(JCurlRequestOptions requestOptions) throws Exception {
         HttpAsyncClientBuilder builder = HttpAsyncClientBuilder.create();
         builder.useSystemProperties();
         builder.setSSLContext(SSLContext.getDefault());
-        builder.setConnectionReuseStrategy(DefaultConnectionReuseStrategy.INSTANCE);
-        builder.setMaxConnPerRoute(2);
-        builder.setMaxConnTotal(2);
-        builder.setDefaultRequestConfig(RequestConfig
+        builder.setDefaultIOReactorConfig(IOReactorConfig
             .custom()
-            .setConnectionRequestTimeout(1000)
-            .setConnectTimeout(2000)
-            .setSocketTimeout(2000)
-        .build()
+            .setConnectTimeout(requestOptions.getConnectTimeout())
+            .setSoTimeout(requestOptions.getSocketTimeout())
+            .build()
         );
-//        builder.setHttpProcessor()
+        builder.setDefaultRequestConfig(RequestConfig
+                .custom()
+                .setConnectionRequestTimeout(requestOptions.getConnectionRequestTimeout())
+                .setConnectTimeout(requestOptions.getConnectTimeout())
+                .setSocketTimeout(requestOptions.getSocketTimeout())
+                .build()
+        );
+        builder.setEventHandler(new HttpAsyncRequestExecutor() {
+            @Override
+            public void requestReady(NHttpClientConnection conn) throws IOException, HttpException {
+                super.requestReady(conn);
+                HttpAsyncClientExchangeHandler exh = (HttpAsyncClientExchangeHandler) conn.getContext().getAttribute(HttpAsyncRequestExecutor.HTTP_HANDLER);
+                System.out.println("request submitted " + conn.getContext().getAttribute("requestnr"));
+            }
+
+            @Override
+            public void outputReady(NHttpClientConnection conn, ContentEncoder encoder) throws IOException, HttpException {
+                super.outputReady(conn, encoder);
+                System.out.println("output ready " + conn.getContext().getAttribute("requestnr"));
+            }
+
+            @Override
+            public void responseReceived(NHttpClientConnection conn) throws HttpException, IOException {
+                super.responseReceived(conn);
+                System.out.println("response received " + conn.getContext().getAttribute("requestnr"));
+            }
+        });
         CloseableHttpAsyncClient hc = builder.build();
         hc.start();
         return hc;

@@ -21,7 +21,16 @@ import org.springframework.http.ResponseEntity;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Erich Eichinger
@@ -32,35 +41,65 @@ public class UrlEngine implements Engine {
     public ResponseEntity<String> submit(JCurlRequestOptions requestOptions) throws Exception {
         System.setProperty("http.keepAlive", "true");
 
-        ResponseEntity<String> responseEntity = null;
         URL obj = new URL(requestOptions.getUrl());
 
+        int threadCount = requestOptions.isParallel() ? Integer.valueOf(System.getProperty("http.maxConnections", "5")) : 1;
+        final ExecutorService scheduler = Executors.newFixedThreadPool(threadCount);
+
+        List<Future<ResponseEntity<String>>> responseFutures = new ArrayList<>();
+
         for (int i=0;i< requestOptions.getCount();i++) {
+            final int nr = i;
             HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
             // add request header
             con.setRequestMethod("GET");
-            con.setConnectTimeout(2000);
+            con.setConnectTimeout(requestOptions.getConnectTimeout());
+            con.setReadTimeout(requestOptions.getSocketTimeout());
+
             for(Map.Entry<String,String> e : requestOptions.getHeaderMap().entrySet()) {
                 con.setRequestProperty(e.getKey(), e.getValue());
             }
 
-            System.out.println("\nSending 'GET' request to URL : " + requestOptions.getUrl());
-            con.connect();
+            responseFutures.add(scheduler.submit(() -> {
+                System.out.println("\nSending 'GET' request to URL : " + requestOptions.getUrl());
+                try {
+                    con.connect();
 
-            int responseCode = con.getResponseCode();
-            System.out.println("Response Code : " + responseCode);
+                    int responseCode = con.getResponseCode();
+                    System.out.println("received response: " +  nr + " - Status " + responseCode);
 
-            final InputStream is = con.getInputStream();
-            String response = IOUtils.toString(is);
-            is.close();
+                    final InputStream is = (responseCode < 400) ? con.getInputStream() : con.getErrorStream();
+                    String response = IOUtils.toString(is);
+                    is.close();
 
-            //print result
-            System.out.println(response);
-
-            responseEntity = new ResponseEntity<String>(response, HttpStatus.valueOf(responseCode));
+                    return new ResponseEntity<String>(response, HttpStatus.valueOf(responseCode));
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+            }));
         }
-        return responseEntity;
-    }
 
+        int errors = 0;
+        Exception ex = null;
+        for(int i=0;i<responseFutures.size();i++) {
+            System.out.println("awaiting response " + i);
+            try {
+                responseFutures.get(i).get();
+            } catch(Exception e) {
+                if (ex == null) ex =e;
+                errors++;
+            }
+        }
+
+        System.out.println("submitted requests: " + responseFutures.size() + ", errors: " + errors);
+
+        scheduler.shutdown();
+
+        if (ex != null) {
+            throw ex;
+        }
+
+        return responseFutures.get(0).get();
+    }
 }

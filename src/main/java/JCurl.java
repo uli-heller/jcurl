@@ -16,6 +16,7 @@
  */
 
 import java.io.IOException;
+import java.util.List;
 import java.util.logging.LogManager;
 
 import ch.qos.logback.classic.BasicConfigurator;
@@ -28,6 +29,7 @@ import lombok.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StopWatch;
 
 import static java.util.Arrays.asList;
 
@@ -53,6 +55,15 @@ public class JCurl {
             .ofType(String.class);
         parser.acceptsAll(asList("verbose", "v"), "activate verbose logging");
         parser.acceptsAll(asList("count", "c"), "repeat call x times")
+              .withRequiredArg()
+              .ofType(Integer.class);
+        parser.acceptsAll(asList("connectionRequestTimeout"), "timeout for requesting a connection from the connection pool (ms)")
+              .withRequiredArg()
+              .ofType(Integer.class);
+        parser.acceptsAll(asList("connectTimeout"), "timeout for connecting to a server (ms)")
+              .withRequiredArg()
+              .ofType(Integer.class);
+        parser.acceptsAll(asList("socketTimeout"), "timeout for sending/receiving data (ms)")
               .withRequiredArg()
               .ofType(Integer.class);
         parser.acceptsAll(asList("parallel", "p"), "submit <count> requests simultaneously")
@@ -102,6 +113,18 @@ public class JCurl {
             options.setCount(Integer.valueOf("" + optionSet.valueOf("count")));
         }
 
+        if (optionSet.has("connectionRequestTimeout")) {
+            options.setConnectionRequestTimeout(Integer.valueOf("" + optionSet.valueOf("connectionRequestTimeout")));
+        }
+
+        if (optionSet.has("connectTimeout")) {
+            options.setConnectTimeout(Integer.valueOf("" + optionSet.valueOf("connectTimeout")));
+        }
+
+        if (optionSet.has("socketTimeout")) {
+            options.setSocketTimeout(Integer.valueOf("" + optionSet.valueOf("socketTimeout")));
+        }
+
         if (optionSet.has("parallel")) {
             options.setParallel(Boolean.valueOf("" + optionSet.valueOf("parallel")));
         }
@@ -117,7 +140,14 @@ public class JCurl {
             }
         }
 
-        return engineType.getEngine().submit(options);
+        StopWatch stopWatch = new StopWatch();
+        try {
+            stopWatch.start();
+            return engineType.getEngine().submit(options);
+        } finally {
+            stopWatch.stop();
+            System.out.println(stopWatch.shortSummary());
+        }
     }
 
     private OptionSet parseOptionSet(String[] args) throws IOException {

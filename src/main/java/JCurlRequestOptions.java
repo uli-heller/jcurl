@@ -33,6 +33,9 @@ public class JCurlRequestOptions {
     private String url;
     private boolean parallel = false;
     private int count = 1;
+    private int connectionRequestTimeout = 5000;
+    private int connectTimeout = 5000;
+    private int socketTimeout = 5000;
     private final Map<String, String> headerMap = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
 
     public JCurlRequestOptions() {
