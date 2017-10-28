@@ -116,7 +116,8 @@ public class JCurl {
         
         if (optionSet.has("hostnames")) {
             String hostnames = optionSet.valueOf(hostnamesSpec);
-            
+            JCurlNameService.setHostNames(hostnames);
+            System.setProperty("sun.net.spi.nameservice.provider.1", "dns,mine");
         }
 
         return engineType.getEngine().submit(options);
