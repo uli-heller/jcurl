@@ -15,7 +15,7 @@
  */
 package io.netty.resolver;
 
-import io.netty.util.internal.UnstableApi;
+//import io.netty.util.internal.UnstableApi;
 
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -26,7 +26,7 @@ import java.util.Map;
 /**
  * A container of hosts file entries
  */
-@UnstableApi
+//@UnstableApi
 public final class HostsFileEntries {
 
     /**
