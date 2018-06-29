@@ -42,6 +42,8 @@ Option                 Description
                          AsyncHttpClient), default is 'url'
 -h, --help             print help
 -v, --verbose          activate verbose logging
+-n, --hostnames        specify a custom /etc/hosts filem e.g.
+                         '-n /tmp/myhosts'
 ```
 
 Currently available engines are:
