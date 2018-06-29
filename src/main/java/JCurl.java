@@ -54,6 +54,7 @@ public class JCurl {
             .withRequiredArg()
             .ofType(String.class);
         parser.acceptsAll(asList("verbose", "v"), "activate verbose logging");
+        parser.acceptsAll(asList("quiet", "q"), "be quiet, just show the response body");
         parser.acceptsAll(asList("count", "c"), "repeat call x times")
               .withRequiredArg()
               .ofType(Integer.class);
@@ -76,8 +77,8 @@ public class JCurl {
 
     public ResponseEntity<String> execute(String... args) throws Exception {
         final LoggerContext context = initLogging();
-
-        System.out.println("Starting jCurl in " + System.getProperty("user.dir"));
+        // Cannot use SystemOut here, since the options are parsed below
+        //System.out.println("Starting jCurl in " + System.getProperty("user.dir"));
 
         OptionSet optionSet = parseOptionSet(args);
         if (optionSet == null) {
@@ -97,6 +98,10 @@ public class JCurl {
         if (optionSet.has("verbose")) {
             LogManager.getLogManager().getLogger("").setLevel(java.util.logging.Level.ALL);
             context.getLogger(Logger.ROOT_LOGGER_NAME).setLevel(Level.ALL);
+        }
+
+        if (optionSet.has("quiet")) {
+            options.setQuiet(true);
         }
 
         if (optionSet.has("count")) {
@@ -119,6 +124,11 @@ public class JCurl {
             JCurlNameService.setHostNames(hostnames);
             System.setProperty("sun.net.spi.nameservice.provider.1", "dns,mine");
         }
+
+        SystemOut systemOut = SystemOut.getInstance();
+        systemOut.setQuiet(options.isQuiet());
+
+        systemOut.println("Starting jCurl in " + System.getProperty("user.dir"));
 
         return engineType.getEngine().submit(options);
     }

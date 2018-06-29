@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 public class OkHttpEngine implements Engine {
     @Override
     public ResponseEntity<String> submit(JCurlRequestOptions requestOptions) throws Exception {
+        SystemOut systemOut = SystemOut.getInstance();
         OkHttpClient client = new OkHttpClient.Builder()
             .connectTimeout(2000, TimeUnit.MILLISECONDS)
             .sslSocketFactory(SSLContext.getDefault().getSocketFactory())
@@ -45,18 +46,18 @@ public class OkHttpEngine implements Engine {
                 .get();
             Request request = requestBuilder.build();
 
-            System.out.println("\nSending 'GET' request to URL : " + requestOptions.getUrl());
+            systemOut.println("\nSending 'GET' request to URL : " + requestOptions.getUrl());
             Response response = client.newCall(request).execute();
 
             int responseCode = response.code();
-            System.out.println("Response Code : " + responseCode);
+            systemOut.println("Response Code : " + responseCode);
 
             final InputStream is = response.body().byteStream();
             String responseContent = IOUtils.toString(is);
             is.close();
 
             //print result
-            System.out.println(responseContent);
+            SystemOut.println(false, responseContent);
 
             responseEntity = new ResponseEntity<String>(responseContent, HttpStatus.valueOf(responseCode));
         }

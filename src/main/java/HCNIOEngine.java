@@ -51,7 +51,7 @@ public class HCNIOEngine implements Engine {
                 AsyncRestTemplate template = new AsyncRestTemplate(new HttpComponentsAsyncClientHttpRequestFactory(hc));
                 final ListenableFuture<ResponseEntity<String>> exchange = template.exchange(requestOptions.getUrl(), HttpMethod.GET, requestEntity, String.class);
                 stringResponseEntity = exchange.get();
-                System.out.println(stringResponseEntity.getBody());
+                SystemOut.println(false, stringResponseEntity.getBody());
 
             }
             return stringResponseEntity;

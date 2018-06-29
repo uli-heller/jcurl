@@ -49,7 +49,7 @@ public class HCEngine implements Engine {
                 RestTemplate template = new RestTemplate(new HttpComponentsClientHttpRequestFactory(hc));
 
                 stringResponseEntity = template.exchange(requestOptions.getUrl(), HttpMethod.GET, requestEntity, String.class);
-                System.out.println(stringResponseEntity.getBody());
+                SystemOut.println(false, stringResponseEntity.getBody());
 
             }
             return stringResponseEntity;

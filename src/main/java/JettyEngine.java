@@ -32,6 +32,7 @@ import java.util.Map;
 public class JettyEngine implements Engine {
     @Override
     public ResponseEntity<String> submit(JCurlRequestOptions requestOptions) throws Exception {
+        SystemOut systemOut = SystemOut.getInstance();
 
         final SslContextFactory sslContextFactory = new SslContextFactory();
         sslContextFactory.setSslContext(SSLContext.getDefault());
@@ -49,16 +50,16 @@ public class JettyEngine implements Engine {
                 request.header(e.getKey(), e.getValue());
             }
 
-            System.out.println("\nSending 'GET' request to URL : " + requestOptions.getUrl());
+            systemOut.println("\nSending 'GET' request to URL : " + requestOptions.getUrl());
             final ContentResponse response = request.send();
 
             int responseCode = response.getStatus();
-            System.out.println("Response Code : " + responseCode);
+            systemOut.println("Response Code : " + responseCode);
 
             String responseContent = IOUtils.toString(response.getContent(), "utf-8");
 
             //print result
-            System.out.println(responseContent);
+            SystemOut.println(false, responseContent);
 
             responseEntity = new ResponseEntity<String>(responseContent, HttpStatus.valueOf(responseCode));
         }

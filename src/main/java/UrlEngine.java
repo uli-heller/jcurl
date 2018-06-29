@@ -30,6 +30,7 @@ import java.util.Map;
 public class UrlEngine implements Engine {
     @Override
     public ResponseEntity<String> submit(JCurlRequestOptions requestOptions) throws Exception {
+        SystemOut systemOut = SystemOut.getInstance();
         System.setProperty("http.keepAlive", "true");
 
         ResponseEntity<String> responseEntity = null;
@@ -45,18 +46,18 @@ public class UrlEngine implements Engine {
                 con.setRequestProperty(e.getKey(), e.getValue());
             }
 
-            System.out.println("\nSending 'GET' request to URL : " + requestOptions.getUrl());
+            systemOut.println("\nSending 'GET' request to URL : " + requestOptions.getUrl());
             con.connect();
 
             int responseCode = con.getResponseCode();
-            System.out.println("Response Code : " + responseCode);
+            systemOut.println("Response Code : " + responseCode);
 
             final InputStream is = con.getInputStream();
             String response = IOUtils.toString(is);
             is.close();
 
             //print result
-            System.out.println(response);
+            SystemOut.println(false, response);
 
             responseEntity = new ResponseEntity<String>(response, HttpStatus.valueOf(responseCode));
         }

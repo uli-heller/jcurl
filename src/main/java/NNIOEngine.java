@@ -67,7 +67,7 @@ public class NNIOEngine implements Engine {
                 AsyncRestTemplate template = new AsyncRestTemplate(netty4ClientHttpRequestFactory);
                 final ListenableFuture<ResponseEntity<String>> exchange = template.exchange(requestOptions.getUrl(), HttpMethod.GET, requestEntity, String.class);
                 stringResponseEntity = exchange.get();
-                System.out.println(stringResponseEntity.getBody());
+                SystemOut.println(false, stringResponseEntity.getBody());
             }
             return stringResponseEntity;
         } finally {

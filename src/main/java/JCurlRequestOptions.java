@@ -33,6 +33,7 @@ public class JCurlRequestOptions {
     private String url;
     private boolean parallel = false;
     private int count = 1;
+    private boolean quiet = false;
     private final Map<String, String> headerMap = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
 
     public JCurlRequestOptions() {
