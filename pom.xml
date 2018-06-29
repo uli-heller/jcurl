@@ -37,10 +37,10 @@
         <ci-build-time>${maven.build.timestamp}</ci-build-time>
         <ci-svn-revision>${env.SVN_REVISION}</ci-svn-revision>
 
-        <slf4j.version>1.7.18</slf4j.version>
-        <logback.version>1.1.6</logback.version>
-        <spring.version>4.2.5.RELEASE</spring.version>
-        <netty.version>4.0.33.Final</netty.version>
+        <slf4j.version>1.7.25</slf4j.version>
+        <logback.version>1.1.11</logback.version>
+        <spring.version>4.3.18.RELEASE</spring.version>
+        <netty.version>4.0.33.Final</netty.version> <!-- 4.0.56.Final does not compile -->
     </properties>
     <build>
         <finalName>jcurl</finalName>

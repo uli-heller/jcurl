@@ -5,6 +5,7 @@ v1.0.0.uli2
 -----------
 
 * Neue Option "-q" zur Unterdrückung der meisten Meldungen
+* Aktualisiert: slf4j, logback, spring
 
 v1.0.0.uli1
 -----------
