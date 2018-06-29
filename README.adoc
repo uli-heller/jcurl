@@ -44,6 +44,8 @@ Option                 Description
 -v, --verbose          activate verbose logging
 -n, --hostnames        specify a custom /etc/hosts filem e.g.
                          '-n /tmp/myhosts'
+-q, --quiet            suppress most of the output, print response
+                       body only
 ```
 
 Currently available engines are:
