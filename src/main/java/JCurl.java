@@ -126,7 +126,7 @@ public class JCurl {
         if (optionSet.has("user")) {
           String usernamePassword = (String) optionSet.valueOf("user");
           String encoded = new String(Base64.encodeBase64(usernamePassword.getBytes()));
-          options.setHeader("Authorization", encoded);
+          options.setHeader("Authorization", "Basic "+encoded);
         }
         
         if (optionSet.has("hostnames")) {
