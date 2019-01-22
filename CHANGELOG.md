@@ -1,6 +1,11 @@
 CHANGELOG
 =========
 
+v1.0.0.uli3
+-----------
+
+* Neue Option "-u user:password" für BasicAuth
+
 v1.0.0.uli2
 -----------
 
