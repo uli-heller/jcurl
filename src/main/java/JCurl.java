@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 
 import static java.util.Arrays.asList;
+import org.apache.commons.codec.binary.Base64;
 
 public class JCurl {
 
@@ -71,6 +72,9 @@ public class JCurl {
             .withRequiredArg()
             .ofType(String.class);
         hostnamesSpec = parser.acceptsAll(asList("hostnames", "n"), "hostnames /etc/hosts")
+            .withRequiredArg()
+            .ofType(String.class);
+        parser.acceptsAll(asList("user", "u"), "username:password")
             .withRequiredArg()
             .ofType(String.class);
     }
@@ -117,6 +121,12 @@ public class JCurl {
                     options.setHeader(vals[0].trim(), vals[1].trim());
                 }
             }
+        }
+        
+        if (optionSet.has("user")) {
+          String usernamePassword = (String) optionSet.valueOf("user");
+          String encoded = new String(Base64.encodeBase64(usernamePassword.getBytes()));
+          options.setHeader("Authorization", encoded);
         }
         
         if (optionSet.has("hostnames")) {
